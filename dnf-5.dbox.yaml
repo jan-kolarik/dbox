@@ -1,20 +1,19 @@
 ---
 document: dbox-stack
 document-version: 1
-name: dnf-5
-description: DNF 5 Package Manager Stack
+name: dnf
+description: DNF Package Manager Stack
 distro_setup:
     'centos:stream8': >-
         dnf -y config-manager --set-enabled powertools &&
         dnf -y install epel-release &&
         dnf -y install dnf-plugins-core &&
         dnf -y copr enable rpmsoftwaremanagement/test-utils &&
-        dnf -y copr enable rpmsoftwaremanagement/dnf5-unstable centos-stream-8-x86_64 &&
-        dnf -y module enable swig:4.0
+        dnf -y copr enable rpmsoftwaremanagement/dnf-nightly
     default: >-
         dnf -y install dnf-plugins-core &&
         dnf -y copr enable rpmsoftwaremanagement/test-utils &&
-        dnf -y copr enable rpmsoftwaremanagement/dnf5-unstable
+        dnf -y copr enable rpmsoftwaremanagement/dnf-nightly
 builddeps:
     default: >-
         dnf -y install dnf-plugins-core vim-enhanced git-core bash-completion python3-argcomplete
@@ -123,6 +122,8 @@ configure: >-
     -DENABLE_PERL=OFF
     -DENABLE_RUBY=OFF
     -DENABLE_PYTHON=OFF
+    -DWITH_OPENSSL=ON
+    -DCMAKE_BUILD_TYPE=Debug
     -DCMAKE_INSTALL_PREFIX=/usr/
 build: >-
     ninja-build -j$(nproc)
@@ -165,6 +166,7 @@ configure: >-
     -DCMAKE_CXX_FLAGS="$(pkg-config -cflags libsolv)"
     -DCMAKE_C_FLAGS="$(pkg-config -cflags libsolv)"
     -DCMAKE_INSTALL_PREFIX=/usr/
+    -DCMAKE_BUILD_TYPE=Debug
 build: >-
     make -j$(nproc)
 install: >-
@@ -174,33 +176,21 @@ document: dbox-project
 document-version: 1
 name: libdnf
 clone: >-
-    gitc --branch=dnf-5-devel https://github.com/rpm-software-management/libdnf.git
+    gitc --branch=dnf-4-master https://github.com/rpm-software-management/libdnf.git
 builddeps:
     default: >-
-        dnf -y --skip-unavailable builddep --define '_with_sanitizers 1' https://raw.githubusercontent.com/rpm-software-management/libdnf/dnf-5-devel/libdnf.spec &&
-        dnf -y install dbus-daemon polkit procps-ng psmisc
+        dnf -y --skip-unavailable builddep https://raw.githubusercontent.com/rpm-software-management/libdnf/dnf-4-master/libdnf.spec
 configure: >-
     cmake ../..
-    -DPERL_INSTALLDIRS=vendor
-    -DWITH_SANITIZERS=OFF
-    -DWITH_MAN=OFF
-    -DWITH_HTML=OFF
-    -DWITH_GO=OFF
-    -DWITH_PERL5=ON
-    -DWITH_PYTHON3=ON
-    -DWITH_RUBY=ON
+    -DPYTHON_DESIRED=3
     -DCMAKE_INSTALL_PREFIX=/usr/
+    -DCMAKE_BUILD_TYPE=Debug
 build: >-
     make -j$(nproc)
 install: >-
     make install
 unittest: >-
     make test CTEST_OUTPUT_ON_FAILURE=TRUE
-paths:
-    LIBDNF_PLUGIN_DIR:
-        - $LIBDIR/libdnf-plugins
-    LIBDNF_PYTHON_PLUGIN_DIR:
-        - $SOURCEDIR/libdnf-plugins/python_plugins_loader
 ---
 document: dbox-project
 document-version: 1
@@ -214,6 +204,7 @@ configure: >-
     cmake ../..
     -DPYTHON_DESIRED=3
     -DCMAKE_INSTALL_PREFIX=/usr/
+    -DCMAKE_BUILD_TYPE=Debug
 build: >-
     make -j$(nproc)
 install: >-
@@ -232,7 +223,6 @@ builddeps:
 configure: >-
     cmake ../..
     -DPYTHON_DESIRED=3
-    -DWITH_MAN=0
     -DCMAKE_INSTALL_PREFIX=/usr/
 build: >-
     make -j$(nproc)
@@ -241,7 +231,7 @@ install: >-
 fixup: >-
     ln -sf dnf-3 $DESTDIR/usr/bin/dnf
 unittest: >-
-    TERM=xterm make test CTEST_OUTPUT_ON_FAILURE=TRUE
+    TERM=xterm make test ARGS="-V" CTEST_OUTPUT_ON_FAILURE=TRUE
 ---
 document: dbox-project
 document-version: 1
@@ -306,4 +296,36 @@ test-wip: >-
 test-smoke: >-
     cd ../../dnf-behave-tests &&
     LC_ALL=C.UTF-8 behave -Ddnf_executable=dnf-3 -Dpreserve=failed -v dnf --no-skipped --tags=tier1
+---
+document: dbox-project
+document-version: 1
+name: dnf5
+clone: >-
+    gitc https://github.com/rpm-software-management/dnf5.git
+builddeps:
+    default: >-
+        dnf -y --skip-unavailable builddep --define '_with_sanitizers 1' https://raw.githubusercontent.com/rpm-software-management/dnf5/main/dnf5.spec &&
+        dnf -y install dbus-daemon polkit procps-ng psmisc toml11-devel gdb tito
+configure: >-
+    cmake ../..
+    -DPERL_INSTALLDIRS=vendor
+    -DWITH_SANITIZERS=OFF
+    -DWITH_GO=OFF
+    -DWITH_PERL5=ON
+    -DWITH_PYTHON3=ON
+    -DWITH_RUBY=ON
+    -DWITH_PLUGIN_RHSM=OFF
+    -DCMAKE_INSTALL_PREFIX=/usr/
+    -DCMAKE_BUILD_TYPE=Debug
+build: >-
+    make -j$(nproc)
+install: >-
+    make install
+unittest: >-
+    make test CTEST_OUTPUT_ON_FAILURE=TRUE
+paths:
+    DNF5_PLUGINS_DIR:
+        - $LIBDIR/dnf5/plugins
+    LIBDNF_PYTHON_PLUGIN_DIR:
+        - $SOURCEDIR/libdnf-plugins/python_plugins_loader
 ...
