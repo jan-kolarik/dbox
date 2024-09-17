@@ -328,4 +328,23 @@ paths:
         - $LIBDIR/dnf5/plugins
     LIBDNF_PYTHON_PLUGIN_DIR:
         - $SOURCEDIR/libdnf-plugins/python_plugins_loader
+---
+document: dbox-project
+document-version: 1
+name: libpkgmanifest
+clone: >-
+    gitc https://github.com/rpm-software-management/libpkgmanifest.git
+builddeps:
+    default: >-
+        dnf -y --skip-unavailable builddep https://raw.githubusercontent.com/rpm-software-management/libpkgmanifest/main/libpkgmanifest.spec
+configure: >-
+    cmake ../..
+    -DCMAKE_INSTALL_PREFIX=/usr/
+    -DCMAKE_BUILD_TYPE=Debug
+build: >-
+    make -j$(nproc)
+install: >-
+    make install
+unittest: >-
+    ctest -V --test-dir test
 ...
